@@ -1,0 +1,25 @@
+# Render Blueprint: 이 파일이 있으면 Render가 설정을 자동으로 읽는다.
+services:
+  - type: web
+    name: btc-data-assistant-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: STORAGE
+        value: firestore
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_MAX_TOKENS
+        value: "600"
+      - key: OPENAI_API_KEY
+        sync: false        # 대시보드에서 직접 입력 (코드에 안 남김)
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false        # 예: https://xxx.vercel.app

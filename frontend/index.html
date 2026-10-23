@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BTC 데이터 비서</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    // 저장된 테마를 화면 그리기 전에 적용 (깜빡임 방지)
+    try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">₿</span>
+      <div>
+        <h1>BTC 데이터 비서</h1>
+        <p class="sub">내 데이터를 알고 대답하는 AI</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="serverStatus" class="pill pill-wait" role="status">서버 연결 중…</span>
+      <button id="themeToggle" class="icon-btn" type="button" aria-label="다크 모드 전환">🌙</button>
+    </div>
+  </header>
+
+  <div id="coldBanner" class="banner" hidden>
+    ☕ 무료 서버(Render)가 잠들어 있어서 깨우는 중이에요. 첫 연결은 <b>최대 50초</b>쯤 걸릴 수 있어요.
+  </div>
+
+  <div class="layout">
+    <!-- 대화 기록 -->
+    <aside class="sidebar" aria-label="대화 기록">
+      <button id="newChatBtn" class="btn btn-primary btn-block" type="button">＋ 새 대화</button>
+      <h2 class="side-title">이전 대화</h2>
+      <ul id="convList" class="conv-list"></ul>
+      <p id="convEmpty" class="muted small" hidden>아직 저장된 대화가 없어요.</p>
+    </aside>
+
+    <main class="main">
+      <!-- 데이터 요약 -->
+      <section class="summary" aria-label="데이터 요약">
+        <div class="summary-head">
+          <h2>📌 현재 데이터 요약 <span class="muted small">— AI가 이 내용을 알고 대답해요</span></h2>
+          <span id="trendBadge" class="badge">-</span>
+        </div>
+        <div id="summaryGrid" class="summary-grid">
+          <div class="stat skeleton"></div><div class="stat skeleton"></div><div class="stat skeleton"></div>
+          <div class="stat skeleton"></div><div class="stat skeleton"></div>
+        </div>
+        <p id="trendDetail" class="muted small"></p>
+      </section>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab active" role="tab" aria-selected="true" data-tab="chat" type="button">💬 AI 채팅</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="data" type="button">📊 데이터 관리</button>
+      </nav>
+
+      <!-- 채팅 -->
+      <section id="tab-chat" class="panel chat" role="tabpanel">
+        <div id="messages" class="messages" aria-live="polite">
+          <div class="welcome" id="welcome">
+            <p class="welcome-title">무엇이든 물어보세요 👋</p>
+            <p class="muted">저장된 비트코인 일별 종가 데이터를 바탕으로 답해요.</p>
+            <div class="chips">
+              <button class="chip" type="button">최근 일주일 추세 어때?</button>
+              <button class="chip" type="button">기간 중 최고가와 최저가는 언제였어?</button>
+              <button class="chip" type="button">9월 한 달 흐름을 요약해줘</button>
+              <button class="chip" type="button">가장 크게 오른 날은?</button>
+            </div>
+          </div>
+        </div>
+        <form id="chatForm" class="chat-form">
+          <textarea id="chatInput" rows="1" maxlength="1000" placeholder="데이터에 대해 질문해 보세요" required></textarea>
+          <button id="sendBtn" class="btn btn-primary" type="submit">전송</button>
+        </form>
+      </section>
+
+      <!-- 데이터 관리 -->
+      <section id="tab-data" class="panel" role="tabpanel" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h3>가격 흐름</h3>
+            <div class="legend" aria-hidden="true">
+              <span><i class="swatch s1"></i>종가</span>
+              <span><i class="swatch s2"></i>7일 이동평균</span>
+            </div>
+          </div>
+          <div id="chart" class="chart" role="img" aria-label="일별 종가와 7일 이동평균 선 그래프"></div>
+          <div id="extraStats" class="extra-stats"></div>
+        </div>
+
+        <div class="card">
+          <h3 id="formTitle">새 데이터 추가</h3>
+          <form id="dataForm" class="data-form">
+            <label>날짜<input type="date" id="fDate" required /></label>
+            <label>값 (USD)<input type="number" id="fValue" step="0.01" min="0.01" required placeholder="84000" /></label>
+            <label class="grow">메모<input type="text" id="fMemo" maxlength="200" placeholder="선택" /></label>
+            <div class="form-btns">
+              <button class="btn btn-primary" type="submit" id="fSubmit">추가</button>
+              <button class="btn" type="button" id="fCancel" hidden>취소</button>
+            </div>
+          </form>
+          <p id="formMsg" class="form-msg" role="status"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>데이터 목록 <span id="dataCount" class="muted small"></span></h3>
+            <div class="row-gap">
+              <button class="btn btn-sm" type="button" id="exportCsv">⬇ CSV</button>
+              <button class="btn btn-sm" type="button" id="exportJson">⬇ JSON</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>날짜</th><th class="num">값 (USD)</th><th>메모</th><th></th></tr></thead>
+              <tbody id="dataBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="config.js" onerror="window.APP_CONFIG = {}"></script>
+  <script src="app.js"></script>
+</body>
+</html>
