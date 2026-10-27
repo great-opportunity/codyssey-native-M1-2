@@ -11,11 +11,11 @@
 
 | 구분 | URL |
 |---|---|
-| 프론트엔드 (Vercel) | `TODO` |
-| 백엔드 API (Render) | `TODO` |
-| Swagger UI | `TODO/docs` |
+| 프론트엔드 (Vercel) | https://codyssey-native-m1-2-frontend.vercel.app |
+| 백엔드 API (Render) | https://btc-data-assistant-api.onrender.com |
+| Swagger UI | https://btc-data-assistant-api.onrender.com/docs |
 
-> ⏳ 백엔드는 Render 무료 플랜이라 15분 동안 요청이 없으면 잠듭니다. 첫 접속은 **최대 50초쯤** 걸릴 수 있고,
+> ⏳ 백엔드는 Render 무료 플랜이라 15분 동안 요청이 없으면 잠듭니다. 첫 접속은 **1분 가까이** 걸릴 수 있고 (실측 약 56초),
 > 그동안 화면 상단에 "서버 깨우는 중" 안내가 뜨고 자동으로 다시 연결을 시도합니다.
 
 ## 기술 스택
@@ -222,7 +222,7 @@ python3 -m http.server 5500   # http://127.0.0.1:5500
 
 | 화면 | 이미지 |
 |---|---|
-| 데이터 요약이 보이는 채팅 (질문+답변) | ![chat](docs/screenshots/chat.png) |
-| 데이터 관리 (CRUD 동작) | ![data](docs/screenshots/data.png) |
-| 대화 기록 불러오기 | ![history](docs/screenshots/history.png) |
+| 데이터 요약이 보이는 채팅 (질문+답변) — 상단 요약 카드, "요즘" 질문을 최근 30일로 계산, 호출한 도구 표시 | ![chat](docs/screenshots/chat.png) |
+| 데이터 관리 (CRUD 동작) — 2026-10-20 메모 수정 후 저장 결과와 갱신된 목록 | ![data](docs/screenshots/data.png) |
+| 대화 기록 불러오기 — 왼쪽 목록에서 이전 대화를 선택해 메시지를 다시 표시 | ![history](docs/screenshots/history.png) |
 | Swagger UI | ![swagger](docs/screenshots/swagger.png) |
