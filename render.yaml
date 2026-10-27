@@ -13,8 +13,10 @@ services:
         value: 3.12.8
       - key: STORAGE
         value: firestore
+      - key: OPENAI_BASE_URL
+        value: https://copa.codyssey.kr/v1
       - key: OPENAI_MODEL
-        value: gpt-4o-mini
+        value: gpt-5.4-mini
       - key: OPENAI_MAX_TOKENS
         value: "600"
       - key: OPENAI_API_KEY

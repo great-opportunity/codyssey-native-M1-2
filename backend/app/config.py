@@ -16,7 +16,9 @@ def _split_csv(value: str) -> list[str]:
 class Settings:
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    # OpenAI 호환 프록시 주소 (비우면 OpenAI 공식 주소). 예: https://copa.codyssey.kr/v1
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
     # 비용 보호: 답변 1회당 최대 토큰 수
     OPENAI_MAX_TOKENS: int = int(os.getenv("OPENAI_MAX_TOKENS", "600"))
 

@@ -24,7 +24,7 @@
 |---|---|
 | 백엔드 | Python 3.12, FastAPI, Uvicorn, Pydantic v2 |
 | DB | Firebase Firestore (`firebase-admin`) |
-| AI | OpenAI Chat Completions API (`gpt-4o-mini`) + Function Calling |
+| AI | OpenAI Chat Completions API (`gpt-5.4-mini`) + Function Calling |
 | 프론트엔드 | HTML / CSS / JavaScript (프레임워크 없음), 그래프는 SVG 직접 그리기 |
 | 배포 | Render (백엔드), Vercel (프론트엔드) |
 
@@ -140,14 +140,16 @@ GPT 호출 ── 요약만으로 부족하면 도구 호출 ──► get_data_
 
 ### [보너스] Function Calling — 어떤 근거로 어떤 도구를 부르나
 
-| 도구 | AI가 부르는 경우 (예시 질문) |
+| 도구 | 돌려주는 것 (예시 질문) |
 |---|---|
-| `get_data_range(start_date, end_date)` | "10월 15일 값은?", "9월 한 달 흐름 요약해줘" — 요약에 없는 특정 날짜·기간이 필요할 때 |
-| `get_statistics()` | "가장 크게 오른 날은?", "월별 평균 알려줘" — 이동평균·월별·최대 상승일 등 상세 지표 |
-| `get_data_summary()` | 데이터가 바뀐 뒤 최신 요약을 다시 확인할 때 |
-| `list_conversations()` | "전에 내가 뭐 물어봤지?" — 이전 대화 목록이 필요할 때 |
+| `get_statistics(start_date?, end_date?)` | 지정한 기간(비우면 전체)의 변화율·평균·최고/최저·최대 상승/하락일·상승/하락 일수·변동성·월별 평균 — "9월 중 가장 크게 오른 날은?", "월별 평균 알려줘" |
+| `get_data_range(start_date, end_date)` | 그 기간의 일별 값·메모·전일 대비 변동률 (최대 120일) — "10월 15일 값은?", "9월 한 달 흐름 요약해줘" |
+| `list_conversations()` | 저장된 이전 대화 목록 — "전에 내가 뭐 물어봤지?" |
 
-도구 설명(description)과 시스템 프롬프트의 규칙을 보고 GPT가 스스로 고르며,
+질문마다 도구를 정해 주는 대신, 시스템 프롬프트에는 "질문이 가리키는 기간을 대화 흐름에서 먼저 정하고
+그 범위로 도구를 부른다(정해진 범위가 없으면 전체)"는 원칙만 두었습니다.
+그래서 "최근 일주일 어때?" → "그 중 가장 많이 오른 날은?" 같은 이어 묻기도 앞 질문의 기간으로 계산합니다.
+도구 설명(description)과 이 원칙을 보고 GPT가 스스로 고르며,
 화면에서는 답변 아래 `🔧 get_statistics` 처럼 실제로 호출된 도구가 표시됩니다.
 비용 보호를 위해 도구 호출은 최대 3번, 답변은 최대 600토큰으로 제한했습니다.
 
@@ -185,7 +187,8 @@ python3 -m http.server 5500   # http://127.0.0.1:5500
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | ✅ (배포) | 서비스 계정 키 JSON **내용 전체**를 한 줄 문자열로 |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | (로컬 대안) | 서비스 계정 키 파일 경로 — 위 JSON 대신 사용 가능 |
 | `ALLOWED_ORIGINS` | ✅ | CORS 허용 프론트 주소, 쉼표 구분 (예: `https://xxx.vercel.app`) |
-| `OPENAI_MODEL` | | 기본 `gpt-4o-mini` |
+| `OPENAI_BASE_URL` | | OpenAI 호환 프록시 주소 (예: `https://copa.codyssey.kr/v1`), 비우면 OpenAI 공식 주소 |
+| `OPENAI_MODEL` | | 기본 `gpt-5.4-mini` |
 | `OPENAI_MAX_TOKENS` | | 답변 최대 토큰, 기본 `600` |
 | `STORAGE` | | `firestore`(기본) 또는 `memory` |
 

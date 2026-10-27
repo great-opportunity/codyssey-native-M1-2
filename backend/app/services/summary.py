@@ -80,6 +80,60 @@ def summary_to_prompt(s: dict) -> str:
     ])
 
 
+def _in_period(date: str, start: str | None, end: str | None) -> bool:
+    return (not start or date >= start) and (not end or date <= end)
+
+
+def with_returns(items: list[dict], start: str | None = None, end: str | None = None) -> list[dict]:
+    """기간 안의 일별 데이터에 전일 대비 변동률(return_pct)을 붙인다.
+
+    전일 값은 기간 밖에 있어도 쓴다 (기간 첫날의 변동률도 구하려고).
+    """
+    rows = _sorted(items)
+    out = []
+    for i, r in enumerate(rows):
+        if not _in_period(r["date"], start, end):
+            continue
+        prev = rows[i - 1]["value"] if i else None
+        out.append({**r, "return_pct": round((r["value"] / prev - 1) * 100, 2) if prev else None})
+    return out
+
+
+def build_period_stats(items: list[dict], start: str | None = None, end: str | None = None) -> dict:
+    """AI 도구용 기간 통계. 기간을 비우면 전체. 일별 목록은 넣지 않는다 (그건 get_data_range 몫)."""
+    rows = with_returns(items, start, end)
+    if not rows:
+        return {"period": {"start": start, "end": end}, "count": 0}
+
+    values = [r["value"] for r in rows]
+    rets = [r for r in rows if r["return_pct"] is not None]
+    max_row = max(rows, key=lambda r: r["value"])
+    min_row = min(rows, key=lambda r: r["value"])
+    best = max(rets, key=lambda r: r["return_pct"]) if rets else None
+    worst = min(rets, key=lambda r: r["return_pct"]) if rets else None
+
+    months: dict[str, list[float]] = {}
+    for r in rows:
+        months.setdefault(r["date"][:7], []).append(r["value"])
+
+    return {
+        "period": {"start": rows[0]["date"], "end": rows[-1]["date"]},
+        "count": len(rows),
+        "first_value": values[0],
+        "last_value": values[-1],
+        "change_pct": round((values[-1] / values[0] - 1) * 100, 2) if values[0] else None,
+        "mean": round(st.mean(values), 2),
+        "max": {"date": max_row["date"], "value": max_row["value"]},
+        "min": {"date": min_row["date"], "value": min_row["value"]},
+        "best_day": {"date": best["date"], "return_pct": best["return_pct"]} if best else None,
+        "worst_day": {"date": worst["date"], "return_pct": worst["return_pct"]} if worst else None,
+        "up_days": sum(1 for r in rets if r["return_pct"] > 0),
+        "down_days": sum(1 for r in rets if r["return_pct"] < 0),
+        "volatility_pct": round(st.stdev(r["return_pct"] for r in rets), 2) if len(rets) >= 2 else None,
+        "monthly": [{"month": m, "mean": round(st.mean(v), 2), "count": len(v)} for m, v in months.items()],
+    }
+
+
 def build_statistics(items: list[dict]) -> dict:
     """[보너스] 요약보다 자세한 지표: 7일 이동평균, 일간 변동률, 최대 상승/하락일, 월별 평균."""
     rows = _sorted(items)
