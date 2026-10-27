@@ -7,7 +7,7 @@
 4) 질문·답변을 conversations에 자동 저장
 """
 import json
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from openai import OpenAI, OpenAIError
@@ -29,7 +29,9 @@ SYSTEM_TEMPLATE = """너는 사용자의 시계열 데이터를 잘 아는 데�
 {summary}
 
 규칙
-- 답하기 전에 질문이 가리키는 기간·대상을 대화 흐름에서 먼저 정해. 따로 정해진 범위가 없으면 저장된 전체 기간이야.
+- 답하기 전에 질문이 가리키는 기간·대상을 대화 흐름에서 먼저 정해.
+  질문이나 앞 대화에 기간 표현이 없으면 저장된 전체 기간이야 (기간 인자를 비워).
+  "요즘", "최근"처럼 최근을 뜻하는 표현이 있으면 최근 구간이고, 길이를 말하지 않았으면 최근 30일(last_days=30)로 봐.
 - 위 요약은 전체 기간 기준이야. 다른 범위가 필요하면 그 범위로 도구를 호출해.
 - 요약과 도구 결과에 있는 숫자만 근거로 답하고, 어느 기간 기준인지 밝혀. 모르는 수치를 지어내지 마.
 - 투자 권유는 하지 말고, 데이터 해석 위주로 한국어로 간결하게 답해. 숫자에는 단위({unit})를 붙여."""
@@ -37,21 +39,25 @@ SYSTEM_TEMPLATE = """너는 사용자의 시계열 데이터를 잘 아는 데�
 _PERIOD = {
     "start_date": {"type": "string", "description": "시작일 YYYY-MM-DD"},
     "end_date": {"type": "string", "description": "종료일 YYYY-MM-DD"},
+    "last_days": {"type": "integer", "minimum": 1,
+                  "description": "마지막 데이터 날짜까지 최근 N일. start_date/end_date 대신 쓴다."},
 }
 
 TOOLS = [
     {"type": "function", "function": {
         "name": "get_statistics",
-        "description": "지정한 기간의 통계를 계산한다. 기간을 비우면 저장된 전체 기간. "
-                       "시작·끝 값과 변화율, 평균, 최고·최저(날짜), 최대 상승일·하락일(전일 대비 %), "
+        "description": "지정한 기간(start_date~end_date 또는 최근 last_days일)의 통계를 계산한다. "
+                       "기간 인자를 모두 비우면 저장된 전체 기간. "
+                       "시작·끝 값과 변화율, 평균, 최고·최저(날짜), 최대 상승일·하락일(종가, 전일 대비 %), "
                        "상승·하락 일수, 일간 변동성, 월별 평균. 결과의 period가 실제 계산 기간이다.",
         "parameters": {"type": "object", "properties": _PERIOD},
     }},
     {"type": "function", "function": {
         "name": "get_data_range",
-        "description": "지정한 기간의 일별 데이터(date, value, memo, 전일 대비 return_pct)를 날짜순으로 준다. "
+        "description": "지정한 기간(start_date~end_date 또는 최근 last_days일)의 일별 데이터"
+                       "(date, value, memo, 전일 대비 return_pct)를 날짜순으로 준다. "
                        "최대 120개이며 넘으면 truncated가 true다.",
-        "parameters": {"type": "object", "properties": _PERIOD, "required": ["start_date", "end_date"]},
+        "parameters": {"type": "object", "properties": _PERIOD},
     }},
     {"type": "function", "function": {
         "name": "list_conversations",
@@ -61,15 +67,31 @@ TOOLS = [
 ]
 
 
+def _resolve_period(args: dict, items: list[dict]) -> tuple[str | None, str | None]:
+    """도구 인자 → (시작일, 종료일). last_days는 마지막 데이터 날짜 기준으로 날짜를 계산해 준다
+    (AI가 날짜 계산을 직접 하다 틀리지 않게)."""
+    start, end = args.get("start_date") or None, args.get("end_date") or None
+    days = args.get("last_days")
+    if days and items:
+        last = max(i["date"] for i in items)
+        end = last
+        start = (date.fromisoformat(last) - timedelta(days=int(days) - 1)).isoformat()
+    return start, end
+
+
 def run_tool(name: str, args: dict) -> dict:
     """GPT가 요청한 도구를 실제로 실행. MCP 서버에서도 이 함수를 그대로 재사용한다."""
-    start, end = args.get("start_date") or None, args.get("end_date") or None
+    if name in ("get_statistics", "get_data_range"):
+        items = list_data()
+        start, end = _resolve_period(args, items)
     if name == "get_statistics":
-        return build_period_stats(list_data(), start, end)
+        return build_period_stats(items, start, end)
     if name == "get_data_range":
+        if not (start or end):
+            return {"error": "start_date/end_date 또는 last_days 중 하나는 필요합니다."}
         # 전일 대비 변동률을 붙이려고 전체를 읽고 나서 기간으로 자른다
         rows = [{k: r[k] for k in ("date", "value", "memo", "return_pct")}  # 문서 id는 AI에 필요 없음
-                for r in with_returns(list_data(), start, end)]
+                for r in with_returns(items, start, end)]
         return {"count": len(rows), "truncated": len(rows) > MAX_RANGE_ROWS,
                 "rows": rows[:MAX_RANGE_ROWS]}  # 너무 길면 잘라서 토큰 보호
     if name == "list_conversations":
